@@ -1,0 +1,24 @@
+# Secrets et certificats générés localement
+certs/*
+!certs/README.md
+secrets/*
+!secrets/README.md
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+*.htpasswd
+# Environnements et preuves brutes (peuvent contenir IP et identifiants)
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.pyc
+.DS_Store
+*.log
+!docs/preuves/README.md
+preuves-locales/
+node_modules/
