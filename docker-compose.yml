@@ -1,0 +1,135 @@
+name: tp5-traefik-devtech
+
+# Les deux instances app1 et app1b partagent volontairement exactement les mêmes
+# noms de router et de service : elles contribuent au même backend logique app1-svc.
+x-app1-labels: &app1-labels
+  traefik.enable: "true"
+  traefik.docker.network: frontend
+  traefik.http.routers.app1.rule: 'Host(`app1.localhost`)'
+  traefik.http.routers.app1.entrypoints: web
+  traefik.http.routers.app1.service: app1-svc
+  traefik.http.routers.app1secure.rule: 'Host(`app1.localhost`)'
+  traefik.http.routers.app1secure.entrypoints: websecure
+  traefik.http.routers.app1secure.tls: "true"
+  traefik.http.routers.app1secure.middlewares: secure-headers@file
+  traefik.http.routers.app1secure.service: app1-svc
+  traefik.http.services.app1-svc.loadbalancer.server.port: "8080"
+  traefik.http.services.app1-svc.loadbalancer.healthcheck.path: "/"
+  traefik.http.services.app1-svc.loadbalancer.healthcheck.interval: "10s"
+  traefik.http.services.app1-svc.loadbalancer.healthcheck.timeout: "3s"
+
+x-nginx-common: &nginx-common
+  image: nginxinc/nginx-unprivileged:stable-alpine
+  user: "101:101"
+  read_only: true
+  tmpfs:
+    - /tmp:rw,nosuid,nodev,size=32m
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  expose:
+    - "8080"
+  networks:
+    - frontend
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1"]
+    interval: 10s
+    timeout: 3s
+    retries: 5
+    start_period: 5s
+
+services:
+  traefik:
+    image: traefik:v3.7.17
+    container_name: tp5-traefik
+    ports:
+      - "127.0.0.1:80:80"
+      - "127.0.0.1:443:443"
+      - "127.0.0.1:8080:8080"
+    volumes:
+      # ATTENTION : :ro protège le montage, pas les permissions de l'API Docker.
+      # Alternative de production : proxy de socket à endpoints filtrés.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config/traefik.yaml:/etc/traefik/traefik.yaml:ro
+      - ./config/dynamic:/etc/traefik/dynamic:ro
+      - ./certs:/etc/traefik/certs:ro
+      - ./secrets:/etc/traefik/secrets:ro
+    command:
+      - --configFile=/etc/traefik/traefik.yaml
+    networks:
+      - frontend
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      # Les secrets locaux restent 0600. Cette capacité de lecture seule permet
+      # à Traefik de les ouvrir après cap_drop: ALL, sans les rendre world-readable.
+      - DAC_READ_SEARCH
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=16m
+    restart: unless-stopped
+
+  app1:
+    <<: *nginx-common
+    volumes:
+      - ./app1:/usr/share/nginx/html:ro
+    labels: *app1-labels
+
+  app1b:
+    <<: *nginx-common
+    volumes:
+      - ./app1b:/usr/share/nginx/html:ro
+    labels: *app1-labels
+
+  app2:
+    <<: *nginx-common
+    volumes:
+      - ./app2:/usr/share/nginx/html:ro
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: frontend
+      traefik.http.routers.app2.rule: 'Host(`app2.localhost`)'
+      traefik.http.routers.app2.entrypoints: web
+      traefik.http.routers.app2.service: app2-svc
+      traefik.http.routers.app2secure.rule: 'Host(`app2.localhost`)'
+      traefik.http.routers.app2secure.entrypoints: websecure
+      traefik.http.routers.app2secure.tls: "true"
+      traefik.http.routers.app2secure.middlewares: secure-headers@file
+      traefik.http.routers.app2secure.service: app2-svc
+      traefik.http.services.app2-svc.loadbalancer.server.port: "8080"
+
+  # Exercice 5 : troisième application privée, activée avec --profile evolution.
+  # Le mot de passe BCrypt n'est jamais placé dans les labels.
+  app3:
+    <<: *nginx-common
+    profiles: [evolution]
+    volumes:
+      - ./app3:/usr/share/nginx/html:ro
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: frontend
+      traefik.http.routers.app3secure.rule: 'Host(`app3.localhost`)'
+      traefik.http.routers.app3secure.entrypoints: websecure
+      traefik.http.routers.app3secure.tls: "true"
+      traefik.http.routers.app3secure.middlewares: admin-auth@file,secure-headers@file
+      traefik.http.routers.app3secure.service: app3-svc
+      traefik.http.services.app3-svc.loadbalancer.server.port: "8080"
+
+  # Contrôle négatif : conteneur sans traefik.enable=true -> aucune route.
+  non-expose:
+    <<: *nginx-common
+    profiles: [audit]
+    volumes:
+      - ./app2:/usr/share/nginx/html:ro
+    labels:
+      tp5.audit: "unpublished"
+
+networks:
+  frontend:
+    name: frontend
+    external: true

@@ -1,0 +1,15 @@
+digraph G {
+  graph [rankdir=LR, bgcolor="white", pad="0.18", nodesep="0.4", ranksep="0.85", fontname="DejaVu Sans"];
+  node [fontname="DejaVu Sans", fontsize=11, shape=box, style="rounded,filled", fillcolor="#EFF6FF", color="#94A3B8", margin="0.2,0.14"];
+  edge [color="#64748B", arrowsize=0.7, fontname="DejaVu Sans", fontsize=9];
+  client [label="Clients\nHTTPS validé", fillcolor="#DBEAFE"];
+  traefik [label="Traefik (cible)\nDashboard via VPN + auth\nSocket-proxy filtré", fillcolor="#17324D", fontcolor="white", color="#17324D"];
+  client -> traefik;
+  subgraph cluster1 { label="Réseau proxy-app1"; color="#86EFAC"; style="rounded,dashed"; app1a [label="App1-A"]; app1b [label="App1-B"]; }
+  subgraph cluster2 { label="Réseau proxy-app2"; color="#93C5FD"; style="rounded,dashed"; app2 [label="App2"]; }
+  subgraph cluster3 { label="Réseau proxy-app3"; color="#D8B4FE"; style="rounded,dashed"; app3 [label="App3 privée\nAuth middleware"]; }
+  traefik -> app1a;
+  traefik -> app1b;
+  traefik -> app2;
+  traefik -> app3;
+}

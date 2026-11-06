@@ -1,0 +1,58 @@
+Tu es ingénieur DevOps/DevSecOps expérimenté avec Docker, Traefik v3.5, Nginx et TLS.
+
+CONTEXTE
+
+Le kit TP5 Traefik et Docker est déjà rédigé. Ne le reconstruis pas entièrement.
+Le dossier cible est le dossier extrait TP5_Traefik_DevTech (détermine le chemin réel sur la machine).
+Le sujet de 26 pages « TP5 - Reverse Proxy et Load Balancing avec Traefik et Docker » est la référence.
+
+OBJECTIF : terminer le TP sur le VRAI moteur Docker local, relever des preuves, corriger les soucis de runtime et mettre à jour le rendu.
+
+1) Inspections de départ
+- Vérifie docker --version, docker compose version, curl --version, openssl version, htpasswd, ports 80/443/8080.
+- Ne stoppe pas des services étrangers sans autorisation.
+- Ouvre et relis tous les fichiers Compose, configs Traefik, scripts et tests.
+
+2) Tests statiques
+- python -m pytest -q (installer requirements-dev.txt dans un environnement isolé si nécessaire).
+- bash -n scripts/*.sh ; python -m compileall scripts tests ; YAML parse/validation.
+- Enregistrer les résultats réels expurgés ; ne pas écrire « PASS » sans exécution.
+
+3) Bootstrap
+- Générer la CA locale et le certificat via scripts/generate-local-certs.sh.
+- Générer htpasswd BCrypt via scripts/generate-auth.sh, demander de manière sécurisée à l'utilisateur un mot de passe local si indispensable ; ne jamais l'afficher ni le journaliser.
+- Vérifier cert SAN app1.localhost, app2.localhost, app3.localhost et openssl verify.
+- Créer frontend si absent ; docker compose config --quiet ; docker compose up -d.
+
+4) Tests fonctionnels
+- Docker Compose ps et logs, Traefik dashboard/API local, App1/App2 HTTP.
+- Tester hostname inconnu -> 404, aucun port hôte pour Nginx, absence de router non-expose.
+- Vérifier que le service logique app1-svc@docker regroupe réellement deux backends : API, dashboard et 20 requêtes montrant Instance A et Instance B.
+- Si erreurs « router/service defined multiple times » ou conflits labels, diagnostiquer le comportement exact de Traefik 3.7.17 et corriger de façon cohérente avec l'objectif de découverte automatique. Ne pas masquer le problème en se limitant aux tests statiques.
+- Vérifier que chaque conteneur Nginx est healthy, non-root UID 101 et root filesystem read-only.
+- Test d'arrêt contrôlé d'App1, requête vers App1B, redémarrage App1.
+
+5) HTTPS local
+- Tester curl avec --cacert certs/local-ca.crt, --resolve et SNI, SANS JAMAIS UTILISER curl -k.
+- Vérifier la chaîne, le nom, l'expiration et le routage HTTPS sur app1/app2.
+- Activer --profile evolution : app3.localhost doit donner 401 sans auth, 200 avec auth en HTTPS.
+- Ne publier aucun secret ou fichier htpasswd dans Git, README, Word, ZIP ou logs.
+
+6) Revue de sécurité
+- Dashboard/API liés 127.0.0.1:8080 ; vérification si possible depuis autre hôte non autorisé.
+- ExposedByDefault=false ; app « non-expose » jamais publiée ; aucun ports sur app1/app1b/app2/app3.
+- Examiner les risques du docker.sock:ro ; ne pas affirmer qu'il autorise seulement la lecture.
+- Vérifier labels sans secrets ; Nginx non-root et droits ; réseau partagé ≠ segmentation.
+- Si Trivy disponible sans risque, scanner les images réellement utilisées et garder le résultat. Sinon documenter « non exécuté ».
+
+7) Rapport et remise
+- Comparer aux 5 exercices, 21 questions et section 20 du sujet.
+- Mettre à jour le rapport Word et PDF s'ils sont présents, avec résultats vérifiés uniquement.
+- Compléter docs/CHECKLIST_VALIDATION.md ; preuves expurgées et datées.
+- Régénérer archive sans certs/*.key, certs/*.crt générés, secrets/app3.htpasswd, .env, .git, .venv ou preuves contenant des secrets.
+- Ne faire aucun push sur un remote non configuré ; ne pas forcer le push. Si un Git est initialisé, garder la branche existante et présenter diff et statut avant de proposer commit.
+
+RAPPORT FINAL
+- Versions réellement exécutées, tests statiques, statut Docker, routes, backends, HTTP, HTTPS sans -k, dashboard, secrets, UID, ports, tests négatifs, scan images, limitations, fichiers finaux.
+- Si l'absence de Docker ou un autre prérequis bloque, indiquer les faits et ne pas inventer de vérifications.
+- Ne pas affirmer « prêt pour production » : le TP conserve un dashboard local insecure et un socket Docker monté, avec limites documentées.

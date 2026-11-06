@@ -1,0 +1,23 @@
+http:
+  middlewares:
+    secure-headers:
+      headers:
+        contentTypeNosniff: true
+        frameDeny: true
+        referrerPolicy: "no-referrer"
+    redirect-to-https:
+      redirectScheme:
+        scheme: https
+        permanent: true
+    admin-auth:
+      basicAuth:
+        usersFile: /etc/traefik/secrets/app3.htpasswd
+        removeHeader: true
+
+tls:
+  certificates:
+    - certFile: /etc/traefik/certs/localhost.crt
+      keyFile: /etc/traefik/certs/localhost.key
+  options:
+    default:
+      minVersion: VersionTLS12
