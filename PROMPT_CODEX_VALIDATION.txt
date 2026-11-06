@@ -1,4 +1,4 @@
-Tu es ingénieur DevOps/DevSecOps expérimenté avec Docker, Traefik v3.5, Nginx et TLS.
+Tu es ingénieur DevOps/DevSecOps expérimenté avec Docker, Traefik v3.7, Nginx et TLS.
 
 CONTEXTE
 
